@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-run:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     env:
       GitHub__Token: ${{ secrets.EEX_WEBSCRAPING }}
@@ -20,9 +20,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
 
       - name: Restore
         run: dotnet restore
