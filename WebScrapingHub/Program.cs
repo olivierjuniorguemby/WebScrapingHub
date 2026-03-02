@@ -81,7 +81,7 @@ namespace WebScrapingHub
                 File.WriteAllText(jsonOutPath, json);
 
                 Console.WriteLine($"✅ JSON généré : {jsonOutPath}");
-
+                Console.WriteLine("Token length: " + (config["GitHub:Token"]?.Length ?? 0));
                 // 🔥 Upload automatique GitHub
                 await UploadJsonToGitHub(json, config);
 
