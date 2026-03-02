@@ -1,0 +1,31 @@
+name: EEX Scraper Scheduled
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    runs-on: windows-latest
+
+    env:
+      GitHub__Token: ${{ secrets.EEX_WEBSCRAPING }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Run
+        run: dotnet run --project WebScrapingHub/WebScrapingHub.csproj --configuration Release
