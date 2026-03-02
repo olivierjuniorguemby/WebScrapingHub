@@ -6,7 +6,7 @@ on:
     - cron: '0 8 * * 1-5'
 
     # 18h00 France (UTC+1 → 17h UTC)
-    - cron: '0 17 * * 1-5'
+    - cron: '32 17 * * 1-5'
 
   workflow_dispatch:
 
