@@ -6,10 +6,6 @@ using WebScrapingHub.Services;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-<<<<<<< HEAD
-using System.Net.Http.Headers;
-=======
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
 
 namespace WebScrapingHub
 {
@@ -17,13 +13,10 @@ namespace WebScrapingHub
     {
         static async Task Main(string[] args)
         {
-<<<<<<< HEAD
 
             ShowHeader();
             await ShowProgressBar(5); // 5 secondes de progression
 
-=======
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
             // ===============================
             // CONFIG
             // ===============================
@@ -92,13 +85,8 @@ namespace WebScrapingHub
                 Console.WriteLine($"✅ JSON généré : {jsonOutPath}");
 
                 // 🔥 Upload automatique GitHub
-<<<<<<< HEAD
                 await UploadJsonToGitHub(json, config);
-                //await UploadJsonToGitLab(json, config);
-=======
-                //await UploadJsonToGitHub(json, config);
-                await UploadJsonToGitLab(json, config);
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
+
             }
             catch (Exception ex)
             {
@@ -133,20 +121,13 @@ namespace WebScrapingHub
                 }
             }
 
-<<<<<<< HEAD
-
-            Console.WriteLine("=================================");
-            Console.WriteLine("FIN OK");
-            Console.WriteLine("=================================");
-
             Console.WriteLine("Traitement terminé avec succès.");
             await Task.Delay(1500);
             Environment.Exit(0);
-=======
+
             Console.WriteLine("=================================");
             Console.WriteLine("FIN OK");
             Console.WriteLine("=================================");
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
         }
 
         // ==================================================
@@ -197,64 +178,7 @@ namespace WebScrapingHub
             Console.WriteLine("✅ JSON envoyé sur GitHub avec succès");
         }
 
-        static async Task UploadJsonToGitLab(
-<<<<<<< HEAD
-     string jsonContent,
-     IConfiguration config)
-=======
-    string jsonContent,
-    IConfiguration config)
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
-        {
-            var projectId = config["GitLab:ProjectId"]!;
-            var branch = config["GitLab:Branch"]!;
-            var path = config["GitLab:FilePath"]!;
-            var token = config["GitLab:Token"]!;
 
-            var apiUrl =
-<<<<<<< HEAD
-                $"http://gitlab.wattunity.com/api/v4/projects/{projectId}/repository/files/{Uri.EscapeDataString(path)}";
-
-            using var client = new HttpClient();
-
-            // ✅ CORRECT HEADER
-=======
-                $"https://gitlab.com/api/v4/projects/{projectId}/repository/files/{Uri.EscapeDataString(path)}";
-
-            using var client = new HttpClient();
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
-            client.DefaultRequestHeaders.Add("PRIVATE-TOKEN", token);
-
-            var payload = new
-            {
-                branch = branch,
-                content = jsonContent,
-                commit_message = $"Update EEX prices {DateTime.UtcNow:yyyy-MM-dd HH:mm}"
-            };
-
-            var body = new StringContent(
-                JsonSerializer.Serialize(payload),
-<<<<<<< HEAD
-                Encoding.UTF8,
-                "application/json");
-
-=======
-                System.Text.Encoding.UTF8,
-                "application/json");
-
-            // PUT = crée ou met à jour
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
-            var response = await client.PutAsync(apiUrl, body);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine(await response.Content.ReadAsStringAsync());
-                response.EnsureSuccessStatusCode();
-            }
-
-            Console.WriteLine("✅ JSON envoyé sur GitLab avec succès");
-        }
-<<<<<<< HEAD
 
 
         static async Task ShowProgressBar(int durationSeconds)
@@ -298,7 +222,6 @@ namespace WebScrapingHub
             Console.WriteLine();
         }
 
-=======
->>>>>>> 705052e61bcb83312b5d089b13f3514ae6450fe2
+
     }
 }
