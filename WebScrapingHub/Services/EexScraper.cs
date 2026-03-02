@@ -14,13 +14,13 @@ namespace WebScrapingHub.Services
             string[] products,
             string[] deliveries)
         {
-            var service = ChromeDriverService.CreateDefaultService(@"C:\Selenuim\chromedriver-win64\");
-            service.HideCommandPromptWindow = true;
-
             var options = new ChromeOptions();
-            options.AddArgument("--start-maximized");
+options.AddArgument("--headless=new");
+options.AddArgument("--no-sandbox");
+options.AddArgument("--disable-dev-shm-usage");
+options.AddArgument("--window-size=1920,1080");
 
-            using var driver = new ChromeDriver(service, options);
+using var driver = new ChromeDriver(options);
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(60));
 
             Console.WriteLine("🌐 Ouverture du site...");
