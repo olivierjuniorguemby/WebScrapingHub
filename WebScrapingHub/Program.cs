@@ -14,8 +14,8 @@ namespace WebScrapingHub
         static async Task Main(string[] args)
         {
 
-            ShowHeader();
-            await ShowProgressBar(5); // 5 secondes de progression
+            //GIT === ShowHeader();
+            //GIT === await ShowProgressBar(5); // 5 secondes de progression
 
             // ===============================
             // CONFIG
@@ -181,7 +181,7 @@ namespace WebScrapingHub
 
 
 
-        static async Task ShowProgressBar(int durationSeconds)
+        /*static async Task ShowProgressBar(int durationSeconds)
         {
             int totalTicks = 50;
             var start = DateTime.Now;
@@ -220,7 +220,7 @@ namespace WebScrapingHub
 
             Console.ResetColor();
             Console.WriteLine();
-        }
+        }*/
 
 
     }
