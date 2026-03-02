@@ -14,15 +14,11 @@ namespace WebScrapingHub
         static async Task Main(string[] args)
         {
 
-            //GIT === ShowHeader();
-            //GIT === await ShowProgressBar(5); // 5 secondes de progression
-
             // ===============================
             // CONFIG
             // ===============================
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: false)
                 .Build();
 
             var eexUrl = config["Eex:Url"]!;
@@ -181,47 +177,7 @@ namespace WebScrapingHub
 
 
 
-        /*static async Task ShowProgressBar(int durationSeconds)
-        {
-            int totalTicks = 50;
-            var start = DateTime.Now;
-
-            for (int i = 0; i <= totalTicks; i++)
-            {
-                double progress = (double)i / totalTicks;
-                int percent = (int)(progress * 100);
-
-                var elapsed = DateTime.Now - start;
-                var estimatedTotal = TimeSpan.FromSeconds(durationSeconds);
-                var remaining = estimatedTotal - elapsed;
-                if (remaining.TotalSeconds < 0) remaining = TimeSpan.Zero;
-
-                Console.CursorLeft = 0;
-                Console.Write("[");
-                Console.Write(new string('#', i));
-                Console.Write(new string('-', totalTicks - i));
-                Console.Write($"] {percent}%  Temps restant: {remaining:mm\\:ss}");
-
-                await Task.Delay(durationSeconds * 1000 / totalTicks);
-            }
-
-            Console.WriteLine();
-        }
-
-        static void ShowHeader()
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-
-            Console.WriteLine("********************************************");
-            Console.WriteLine("*                                          *");
-            Console.WriteLine("*   WattValue Eex webscraping V1.0        *");
-            Console.WriteLine("*                                          *");
-            Console.WriteLine("********************************************");
-
-            Console.ResetColor();
-            Console.WriteLine();
-        }*/
-
+        
 
     }
 }
