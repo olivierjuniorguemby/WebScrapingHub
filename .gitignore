@@ -1,0 +1,13 @@
+## Visual Studio
+.vs/
+bin/
+obj/
+**/bin/
+**/obj/
+appsettings.json
+*.user
+*.suo
+*.cache
+*.pdb
+*.dbmdl
+*.opendb
