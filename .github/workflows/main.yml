@@ -2,7 +2,12 @@ name: EEX Scraper Scheduled
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    # 9h France (UTC+1 → 8h UTC)
+    - cron: '0 8 * * 1-5'
+    
+    # 18h France (UTC+1 → 17h UTC)
+    - cron: '0 17 * * 1-5'
+
   workflow_dispatch:
 
 jobs:
