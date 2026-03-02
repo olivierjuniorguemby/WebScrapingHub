@@ -123,7 +123,7 @@ namespace WebScrapingHub
 
             Console.WriteLine("Traitement terminé avec succès.");
             await Task.Delay(1500);
-            Environment.Exit(0);
+            //Environment.Exit(0);
 
             Console.WriteLine("=================================");
             Console.WriteLine("FIN OK");
