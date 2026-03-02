@@ -2,10 +2,10 @@ name: EEX Scraper Scheduled
 
 on:
   schedule:
-    # 9h France (UTC+1 → 8h UTC)
+    # 09h00 France (UTC+1 → 08h UTC)
     - cron: '0 8 * * 1-5'
-    
-    # 18h France (UTC+1 → 17h UTC)
+
+    # 18h00 France (UTC+1 → 17h UTC)
     - cron: '0 17 * * 1-5'
 
   workflow_dispatch:
