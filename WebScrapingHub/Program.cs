@@ -19,6 +19,7 @@ namespace WebScrapingHub
             // ===============================
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false)
                 .Build();
 
             var eexUrl = config["Eex:Url"]!;
