@@ -46,8 +46,15 @@ namespace WebScrapingHub.Services
 
                 EnsurePageReady(driver, wait);
 
+                // Configuration spécifique GAS
+                if (query.Market == "gas")
+                {
+                    SelectIfProvided(wait, "tableGraph_commoditySelect", "NATGAS");
+                    SelectIfProvided(wait, "tableGraph_pricingSelect", "F");
+                }
+                
                 SelectIfProvided(wait, "tableGraph_areaSelect", query.Area);
-
+                
                 if (!string.IsNullOrWhiteSpace(query.Product))
                 {
                     SelectIfProvided(wait, "tableGraph_productSelect", query.Product);
