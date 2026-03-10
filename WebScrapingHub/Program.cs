@@ -1,11 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using WebScrapingHub.Services;
-using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json;
+using WebScrapingHub.Services;
 
 namespace WebScrapingHub
 {
@@ -13,22 +11,16 @@ namespace WebScrapingHub
     {
         static async Task Main(string[] args)
         {
-
-            // ===============================
-            // CONFIG
-            // ===============================
             var config = new ConfigurationBuilder()
-    .SetBasePath(AppContext.BaseDirectory)
-    .AddJsonFile("appsettings.json", optional: false)
-    .AddEnvironmentVariables()
-    .Build();
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false)
+                .AddEnvironmentVariables()
+                .Build();
 
-            var eexUrl = config["Eex:Url"]!;
-            var areas = config.GetSection("Eex:Areas").Get<string[]>() ?? Array.Empty<string>();
-            var products = config.GetSection("Eex:Products").Get<string[]>() ?? Array.Empty<string>();
-            var deliveries = config.GetSection("Eex:Deliveries").Get<string[]>() ?? Array.Empty<string>();
+            var eexOptions = config.GetSection("Eex").Get<EexOptions>()
+                            ?? throw new InvalidOperationException("Section Eex introuvable dans appsettings.json");
 
-            var jsonOutPath = config["Output:JsonPath"]!;
+            var jsonOutPath = config["Output:JsonPath"] ?? throw new InvalidOperationException("Output:JsonPath manquant");
             var csvOutPath = config["Output:CsvPath"];
 
             Console.WriteLine("=================================");
@@ -36,12 +28,11 @@ namespace WebScrapingHub
             Console.WriteLine("=================================");
 
             var scraper = new EexScraper();
-
             IReadOnlyList<EexPriceRow> rows;
 
             try
             {
-                rows = scraper.FetchPrices(eexUrl, areas, products, deliveries);
+                rows = scraper.FetchPrices(eexOptions);
             }
             catch (Exception ex)
             {
@@ -52,39 +43,38 @@ namespace WebScrapingHub
 
             Console.WriteLine($"✅ {rows.Count} lignes récupérées");
 
-            // ===============================
-            // JSON EXPORT
-            // ===============================
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(jsonOutPath)!);
+                var jsonDirectory = Path.GetDirectoryName(jsonOutPath);
+                if (!string.IsNullOrWhiteSpace(jsonDirectory))
+                    Directory.CreateDirectory(jsonDirectory);
 
                 var export = rows
-                    .OrderBy(r => r.Delivery)
-                    .ThenBy(r => r.Product)
+                    .OrderBy(r => r.Market)
+                    .ThenBy(r => r.Area)
+                    .ThenBy(r => r.Delivery)
+                    .ThenBy(r => r.Product ?? "")
                     .ThenBy(r => r.Date)
                     .Select(r => new
                     {
+                        market = r.Market,
                         date = r.Date.ToString("yyyy-MM-dd"),
                         area = r.Area,
                         product = r.Product,
                         delivery = r.Delivery,
                         price = r.Price
-                    });
+                    })
+                    .ToList();
 
                 var json = JsonSerializer.Serialize(export, new JsonSerializerOptions
                 {
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                    WriteIndented = true
                 });
 
-                File.WriteAllText(jsonOutPath, json);
-
+                File.WriteAllText(jsonOutPath, json, Encoding.UTF8);
                 Console.WriteLine($"✅ JSON généré : {jsonOutPath}");
-                Console.WriteLine("Token length: " + (config["GitHub:Token"]?.Length ?? 0));
-                // 🔥 Upload automatique GitHub
-                await UploadJsonToGitHub(json, config);
 
+                await UploadJsonToGitHubIfConfigured(json, config);
             }
             catch (Exception ex)
             {
@@ -92,22 +82,21 @@ namespace WebScrapingHub
                 Console.WriteLine(ex);
             }
 
-            // ===============================
-            // CSV EXPORT (optionnel)
-            // ===============================
             if (!string.IsNullOrWhiteSpace(csvOutPath))
             {
                 try
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(csvOutPath)!);
+                    var csvDirectory = Path.GetDirectoryName(csvOutPath);
+                    if (!string.IsNullOrWhiteSpace(csvDirectory))
+                        Directory.CreateDirectory(csvDirectory);
 
-                    using var sw = new StreamWriter(csvOutPath);
-                    sw.WriteLine("date;area;product;delivery;price");
+                    using var sw = new StreamWriter(csvOutPath, false, Encoding.UTF8);
+                    sw.WriteLine("market;date;area;product;delivery;price");
 
                     foreach (var r in rows)
                     {
                         sw.WriteLine(
-                            $"{r.Date:yyyy-MM-dd};{r.Area};{r.Product};{r.Delivery};{r.Price.ToString(CultureInfo.InvariantCulture)}");
+                            $"{r.Market};{r.Date:yyyy-MM-dd};{r.Area};{r.Product ?? ""};{r.Delivery};{r.Price.ToString(CultureInfo.InvariantCulture)}");
                     }
 
                     Console.WriteLine($"✅ CSV généré : {csvOutPath}");
@@ -119,41 +108,42 @@ namespace WebScrapingHub
                 }
             }
 
-            Console.WriteLine("Traitement terminé avec succès.");
-            await Task.Delay(1500);
-            //Environment.Exit(0);
-
             Console.WriteLine("=================================");
             Console.WriteLine("FIN OK");
             Console.WriteLine("=================================");
         }
 
-        // ==================================================
-        // UPLOAD JSON TO GITHUB
-        // ==================================================
-        static async Task UploadJsonToGitHub(string jsonContent, IConfiguration config)
+        private static async Task UploadJsonToGitHubIfConfigured(string jsonContent, IConfiguration config)
         {
-            var owner = config["GitHub:Owner"]!;
-            var repo = config["GitHub:Repo"]!;
-            var branch = config["GitHub:Branch"]!;
-            var path = config["GitHub:FilePath"]!;
-            var token = config["GitHub:Token"]!;
+            var owner = config["GitHub:Owner"];
+            var repo = config["GitHub:Repo"];
+            var branch = config["GitHub:Branch"];
+            var path = config["GitHub:FilePath"];
+            var token = config["GitHub:Token"];
+
+            if (string.IsNullOrWhiteSpace(owner) ||
+                string.IsNullOrWhiteSpace(repo) ||
+                string.IsNullOrWhiteSpace(branch) ||
+                string.IsNullOrWhiteSpace(path) ||
+                string.IsNullOrWhiteSpace(token))
+            {
+                Console.WriteLine("ℹ️ Upload GitHub ignoré : configuration incomplète ou token absent.");
+                return;
+            }
 
             var apiUrl = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
 
             using var client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("EexScraper");
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             string? sha = null;
 
-            // Vérifier si fichier existe
             var getResponse = await client.GetAsync(apiUrl);
             if (getResponse.IsSuccessStatusCode)
             {
-                var json = await getResponse.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(json);
+                var existingJson = await getResponse.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(existingJson);
                 sha = doc.RootElement.GetProperty("sha").GetString();
             }
 
@@ -161,8 +151,8 @@ namespace WebScrapingHub
             {
                 message = $"Update EEX prices {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
                 content = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonContent)),
-                branch = branch,
-                sha = sha
+                branch,
+                sha
             };
 
             var body = new StringContent(
@@ -175,11 +165,5 @@ namespace WebScrapingHub
 
             Console.WriteLine("✅ JSON envoyé sur GitHub avec succès");
         }
-
-
-
-
-        
-
     }
 }
