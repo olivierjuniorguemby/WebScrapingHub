@@ -167,6 +167,62 @@ namespace WebScrapingHub.Services
             return new ChromeDriver(chromeOptions);
         }
 
+        private static List<EexScrapeQuery> BuildQueries(EexOptions config)
+        {
+            var queries = new List<EexScrapeQuery>();
+
+            if (config.Power?.Enabled == true)
+            {
+                foreach (var area in config.Power.Areas ?? Array.Empty<string>())
+                {
+                    foreach (var product in config.Power.Products ?? Array.Empty<string>())
+                    {
+                        foreach (var delivery in config.Power.Deliveries ?? Array.Empty<string>())
+                        {
+                            queries.Add(new EexScrapeQuery(
+                                Market: "power",
+                                Area: area,
+                                Product: product,
+                                Delivery: delivery));
+                        }
+                    }
+                }
+            }
+
+            if (config.Gas?.Enabled == true)
+            {
+                var gasProducts = config.Gas.Products ?? Array.Empty<string>();
+
+                foreach (var area in config.Gas.Areas ?? Array.Empty<string>())
+                {
+                    foreach (var delivery in config.Gas.Deliveries ?? Array.Empty<string>())
+                    {
+                        if (gasProducts.Length == 0)
+                        {
+                            queries.Add(new EexScrapeQuery(
+                                Market: "gas",
+                                Area: area,
+                                Product: null,
+                                Delivery: delivery));
+                        }
+                        else
+                        {
+                            foreach (var product in gasProducts)
+                            {
+                                queries.Add(new EexScrapeQuery(
+                                    Market: "gas",
+                                    Area: area,
+                                    Product: product,
+                                    Delivery: delivery));
+                            }
+                        }
+                    }
+                }
+            }
+
+            return queries;
+        }
+
         private static void EnsurePageReady(IWebDriver driver, WebDriverWait wait)
         {
             wait.Until(d =>
