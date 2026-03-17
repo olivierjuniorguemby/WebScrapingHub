@@ -227,4 +227,30 @@ namespace WebScrapingHub.Services
             catch { }
         }
     }
+
+    public sealed class EexOptions
+    {
+        public string Url { get; set; } = "";
+        public bool Headless { get; set; } = true;
+        public string? ChromeDriverPath { get; set; }
+
+        public EexMarketOptions Power { get; set; } = new();
+        public EexMarketOptions Gas { get; set; } = new();
+    }
+
+    public sealed class EexMarketOptions
+    {
+        public bool Enabled { get; set; } = true;
+        public string[] Areas { get; set; } = Array.Empty<string>();
+        public string[] Products { get; set; } = Array.Empty<string>();
+        public string[] Deliveries { get; set; } = Array.Empty<string>();
+    }
+
+    public sealed record EexScrapeQuery(
+        string Market,
+        string Area,
+        string? Product,
+        string Delivery
+    );
+    
 }
