@@ -16,7 +16,7 @@ namespace WebScrapingHub.Services
             var queries = BuildQueries(config);
 
             if (queries.Count == 0)
-                throw new InvalidOperationException("Aucune requête EEX à exécuter. Vérifiez appsettings.json.");
+                throw new InvalidOperationException("Aucune requête EEX à exécuter.");
 
             var chromeOptions = new ChromeOptions();
 
@@ -42,24 +42,55 @@ namespace WebScrapingHub.Services
 
             foreach (var query in queries)
             {
-                Console.WriteLine($"🔽 {query.Market.ToUpperInvariant()} / {query.Area} / {(query.Product ?? "-")} / {query.Delivery}");
+                Console.WriteLine($"🔽 {query.Market.ToUpper()} / {query.Area} / {query.Product} / {query.Delivery}");
 
                 EnsurePageReady(driver, wait);
 
-                // Configuration spécifique GAS
+                // =====================
+                // CONFIG SPECIFIQUE GAS
+                // =====================
                 if (query.Market == "gas")
                 {
-                    SelectIfProvided(wait, "tableGraph_commoditySelect", "NATGAS");
-                    SelectIfProvided(wait, "tableGraph_pricingSelect", "F");
+                    Console.WriteLine("🔥 CONFIG GAS");
+
+                    new SelectElement(wait.Until(
+                        ExpectedConditions.ElementToBeClickable(
+                            By.Id("tableGraph_commoditySelect"))))
+                        .SelectByValue("NATGAS");
+
+                    Thread.Sleep(800);
+
+                    new SelectElement(wait.Until(
+                        ExpectedConditions.ElementToBeClickable(
+                            By.Id("tableGraph_pricingSelect"))))
+                        .SelectByValue("F");
+
+                    Thread.Sleep(800);
+
+                    new SelectElement(wait.Until(
+                        ExpectedConditions.ElementToBeClickable(
+                            By.Id("tableGraph_areaSelect"))))
+                        .SelectByValue("PEG");
+
+                    Thread.Sleep(800);
+
+                    new SelectElement(wait.Until(
+                        ExpectedConditions.ElementToBeClickable(
+                            By.Id("tableGraph_productSelect"))))
+                        .SelectByValue("Physical");
+
+                    Thread.Sleep(800);
                 }
-                
-                SelectIfProvided(wait, "tableGraph_areaSelect", query.Area);
-                
-                if (!string.IsNullOrWhiteSpace(query.Product))
+                else
                 {
-                    SelectIfProvided(wait, "tableGraph_productSelect", query.Product);
+                    // POWER NORMAL
+                    SelectIfProvided(wait, "tableGraph_areaSelect", query.Area);
+
+                    if (!string.IsNullOrWhiteSpace(query.Product))
+                        SelectIfProvided(wait, "tableGraph_productSelect", query.Product);
                 }
 
+                // DELIVERY
                 SelectIfProvided(wait, "tableGraph_deliverySelect", query.Delivery);
 
                 ClickElement(wait, By.Id("tableGraph_submitBtn"));
@@ -73,7 +104,8 @@ namespace WebScrapingHub.Services
 
                 Thread.Sleep(1500);
 
-                var tableRows = driver.FindElements(By.XPath("//table[@id='tableGraph_dataTable']/tbody/tr"));
+                var tableRows = driver.FindElements(
+                    By.XPath("//table[@id='tableGraph_dataTable']/tbody/tr"));
 
                 foreach (var row in tableRows)
                 {
@@ -84,8 +116,14 @@ namespace WebScrapingHub.Services
                     if (!TryParseDate(cols[0].Text.Trim(), out var dt))
                         continue;
 
-                    var priceText = cols[3].Text.Trim().Replace(" ", "").Replace(",", ".");
-                    if (!decimal.TryParse(priceText, NumberStyles.Any, CultureInfo.InvariantCulture, out var price))
+                    var priceText = cols[3].Text.Trim()
+                        .Replace(" ", "")
+                        .Replace(",", ".");
+
+                    if (!decimal.TryParse(priceText,
+                        NumberStyles.Any,
+                        CultureInfo.InvariantCulture,
+                        out var price))
                         continue;
 
                     results.Add(new EexPriceRow(
@@ -106,87 +144,35 @@ namespace WebScrapingHub.Services
 
             return results
                 .GroupBy(x => new { x.Date, x.Market, x.Area, x.Product, x.Delivery })
-                .Select(g => g.OrderByDescending(x => x.Date).First())
+                .Select(g => g.First())
                 .OrderBy(x => x.Market)
                 .ThenBy(x => x.Area)
                 .ThenBy(x => x.Delivery)
-                .ThenBy(x => x.Product)
                 .ThenBy(x => x.Date)
                 .ToList();
         }
 
+        // ================= HELPERS =================
+
         private static ChromeDriver CreateDriver(EexOptions config, ChromeOptions chromeOptions)
         {
-            if (!string.IsNullOrWhiteSpace(config.ChromeDriverPath) && Directory.Exists(config.ChromeDriverPath))
+            if (!string.IsNullOrWhiteSpace(config.ChromeDriverPath)
+                && Directory.Exists(config.ChromeDriverPath))
             {
                 var service = ChromeDriverService.CreateDefaultService(config.ChromeDriverPath);
                 service.HideCommandPromptWindow = true;
-                return new ChromeDriver(service, chromeOptions, TimeSpan.FromSeconds(120));
+                return new ChromeDriver(service, chromeOptions);
             }
 
             return new ChromeDriver(chromeOptions);
         }
 
-        private static List<EexScrapeQuery> BuildQueries(EexOptions config)
-        {
-            var queries = new List<EexScrapeQuery>();
-
-            if (config.Power?.Enabled == true)
-            {
-                foreach (var area in config.Power.Areas ?? Array.Empty<string>())
-                {
-                    foreach (var product in config.Power.Products ?? Array.Empty<string>())
-                    {
-                        foreach (var delivery in config.Power.Deliveries ?? Array.Empty<string>())
-                        {
-                            queries.Add(new EexScrapeQuery(
-                                Market: "power",
-                                Area: area,
-                                Product: product,
-                                Delivery: delivery));
-                        }
-                    }
-                }
-            }
-
-            if (config.Gas?.Enabled == true)
-            {
-                var gasProducts = config.Gas.Products ?? Array.Empty<string>();
-
-                foreach (var area in config.Gas.Areas ?? Array.Empty<string>())
-                {
-                    foreach (var delivery in config.Gas.Deliveries ?? Array.Empty<string>())
-                    {
-                        if (gasProducts.Length == 0)
-                        {
-                            queries.Add(new EexScrapeQuery(
-                                Market: "gas",
-                                Area: area,
-                                Product: null,
-                                Delivery: delivery));
-                        }
-                        else
-                        {
-                            foreach (var product in gasProducts)
-                            {
-                                queries.Add(new EexScrapeQuery(
-                                    Market: "gas",
-                                    Area: area,
-                                    Product: product,
-                                    Delivery: delivery));
-                            }
-                        }
-                    }
-                }
-            }
-
-            return queries;
-        }
-
         private static void EnsurePageReady(IWebDriver driver, WebDriverWait wait)
         {
             wait.Until(d =>
-                ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState")?.ToString() == "complete");
+                ((IJavaScriptExecutor)d)
+                    .ExecuteScript("return document.readyState")
+                    ?.ToString() == "complete");
 
             AcceptCookies(driver);
 
@@ -194,52 +180,23 @@ namespace WebScrapingHub.Services
             wait.Until(ExpectedConditions.ElementExists(By.Id("tableGraph_deliverySelect")));
         }
 
-        private static void SelectIfProvided(WebDriverWait wait, string selectId, string? value)
+        private static void SelectIfProvided(WebDriverWait wait, string id, string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return;
 
-            var element = wait.Until(ExpectedConditions.ElementToBeClickable(By.Id(selectId)));
-            var select = new SelectElement(element);
+            var select = new SelectElement(
+                wait.Until(ExpectedConditions.ElementToBeClickable(By.Id(id))));
 
-            try
-            {
-                select.SelectByValue(value);
-                Thread.Sleep(1000);
-                return;
-            }
-            catch
-            {
-                // ignore and try text
-            }
-
-            try
-            {
-                select.SelectByText(value);
-                Thread.Sleep(1000);
-                return;
-            }
-            catch
-            {
-                // ignore and try partial
-            }
-
-            var option = select.Options.FirstOrDefault(o =>
-                string.Equals(o.Text?.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(o.GetAttribute("value")?.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                (o.Text?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false));
-
-            if (option == null)
-                throw new InvalidOperationException($"Impossible de sélectionner '{value}' dans '{selectId}'.");
-
-            select.SelectByText(option.Text);
-            Thread.Sleep(1000);
+            select.SelectByValue(value);
+            Thread.Sleep(800);
         }
 
         private static void ClickElement(WebDriverWait wait, By by)
         {
-            var element = wait.Until(ExpectedConditions.ElementToBeClickable(by));
-            ((IJavaScriptExecutor)wait.Until(d => d)).ExecuteScript("arguments[0].click();", element);
+            var el = wait.Until(ExpectedConditions.ElementToBeClickable(by));
+            ((IJavaScriptExecutor)wait.Until(d => d))
+                .ExecuteScript("arguments[0].click();", el);
         }
 
         private static bool TryParseDate(string input, out DateTime dt)
@@ -253,54 +210,21 @@ namespace WebScrapingHub.Services
         {
             try
             {
-                var cookieBtn = driver.FindElements(By.XPath("//input[@value='I accept all cookies.']"));
-                if (cookieBtn.Count > 0)
+                var btn = driver.FindElements(By.XPath("//input[@value='I accept all cookies.']"));
+                if (btn.Count > 0)
                 {
-                    ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", cookieBtn[0]);
+                    ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", btn[0]);
                     Thread.Sleep(1500);
                 }
 
-                var modalBtn = driver.FindElements(By.CssSelector("#popup button.close"));
-                if (modalBtn.Count > 0)
+                var modal = driver.FindElements(By.CssSelector("#popup button.close"));
+                if (modal.Count > 0)
                 {
-                    ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", modalBtn[0]);
+                    ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", modal[0]);
                     Thread.Sleep(1500);
                 }
-
-                ((IJavaScriptExecutor)driver).ExecuteScript(@"
-                    document.body.classList.remove('modal-open');
-                    document.querySelectorAll('.modal-backdrop').forEach(e => e.remove());
-                ");
             }
-            catch
-            {
-                // ignore
-            }
+            catch { }
         }
     }
-
-    public sealed class EexOptions
-    {
-        public string Url { get; set; } = "";
-        public bool Headless { get; set; } = true;
-        public string? ChromeDriverPath { get; set; }
-
-        public EexMarketOptions Power { get; set; } = new();
-        public EexMarketOptions Gas { get; set; } = new();
-    }
-
-    public sealed class EexMarketOptions
-    {
-        public bool Enabled { get; set; } = true;
-        public string[] Areas { get; set; } = Array.Empty<string>();
-        public string[] Products { get; set; } = Array.Empty<string>();
-        public string[] Deliveries { get; set; } = Array.Empty<string>();
-    }
-
-    public sealed record EexScrapeQuery(
-        string Market,
-        string Area,
-        string? Product,
-        string Delivery
-    );
 }
