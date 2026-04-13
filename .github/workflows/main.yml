@@ -2,17 +2,9 @@ name: EEX Scraper Scheduled
 
 on:
   schedule:
-    # 08h30 France (UTC+1 → 07h30 UTC hiver / 06h30 été approx)
-    - cron: '30 6 * * 1-5'
-    - cron: '30 7 * * 1-5'
-
-    # 18h France (UTC+1 / UTC+2)
-    - cron: '0 16 * * 1-5'
-    - cron: '0 17 * * 1-5'
-
-    # 09h France (été + hiver)
-    - cron: '0 7 * * 1-5'  # été
-    - cron: '0 8 * * 1-5'  # hiver
+    # Toutes les 10 minutes entre 06h et 08h UTC
+    # → couvre 08h–10h Paris (été + hiver automatiquement)
+    - cron: '*/10 6-8 * * 1-5'
 
   workflow_dispatch:
 
@@ -24,22 +16,32 @@ jobs:
       GitHub__Token: ${{ secrets.EEX_WEBSCRAPING }}
 
     steps:
-      - name: ⏱️ Vérification heure Paris
+      - name: ⏱️ Vérification heure Paris + anti double run
         id: timecheck
         run: |
-          NOW_HOUR=$(TZ="Europe/Paris" date +%H)
-          NOW_MIN=$(TZ="Europe/Paris" date +%M)
+          NOW=$(TZ="Europe/Paris" date +"%Y-%m-%d %H:%M:%S")
+          HOUR=$(TZ="Europe/Paris" date +%H)
 
-          echo "Heure Paris actuelle: $NOW_HOUR:$NOW_MIN"
+          echo "Heure Paris actuelle: $NOW"
 
-          # Autoriser uniquement 09h00–09h09 ou 18h00–18h09
-          if { [ "$NOW_HOUR" = "09" ] && [ "$NOW_MIN" -lt 10 ]; } || \
-             { [ "$NOW_HOUR" = "18" ] && [ "$NOW_MIN" -lt 10 ]; }; then
+          # Autoriser uniquement entre 08h et 09h
+          if [ "$HOUR" = "08" ] || [ "$HOUR" = "09" ]; then
+            echo "Dans la bonne fenêtre horaire ✅"
+
+            # Anti double exécution (par jour)
+            LOCK_FILE="run_$(TZ="Europe/Paris" date +%Y%m%d).lock"
+
+            if [ -f "$LOCK_FILE" ]; then
+              echo "⚠️ Déjà exécuté aujourd'hui → stop"
+              echo "RUN_OK=false" >> $GITHUB_ENV
+              exit 0
+            fi
+
+            touch "$LOCK_FILE"
             echo "RUN_OK=true" >> $GITHUB_ENV
-            echo "✅ Exécution autorisée"
           else
+            echo "⛔ Hors créneau → stop"
             echo "RUN_OK=false" >> $GITHUB_ENV
-            echo "⛔ Mauvais créneau → stop"
           fi
 
       - name: ⛔ Stop si mauvais créneau
