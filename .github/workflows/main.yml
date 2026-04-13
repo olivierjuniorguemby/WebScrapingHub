@@ -2,11 +2,17 @@ name: EEX Scraper Scheduled
 
 on:
   schedule:
-    # 08h30 France (UTC+1 → 07h30 UTC)
+    # 08h30 France (UTC+1 → 07h30 UTC hiver / 06h30 été approx)
+    - cron: '30 6 * * 1-5'
     - cron: '30 7 * * 1-5'
 
-    # 18h00 France (UTC+1 → 17h00 UTC)
+    # 18h France (UTC+1 / UTC+2)
+    - cron: '0 16 * * 1-5'
     - cron: '0 17 * * 1-5'
+
+    # 09h France (été + hiver)
+    - cron: '0 7 * * 1-5'  # été
+    - cron: '0 8 * * 1-5'  # hiver
 
   workflow_dispatch:
 
@@ -18,6 +24,28 @@ jobs:
       GitHub__Token: ${{ secrets.EEX_WEBSCRAPING }}
 
     steps:
+      - name: ⏱️ Vérification heure Paris
+        id: timecheck
+        run: |
+          NOW_HOUR=$(TZ="Europe/Paris" date +%H)
+          NOW_MIN=$(TZ="Europe/Paris" date +%M)
+
+          echo "Heure Paris actuelle: $NOW_HOUR:$NOW_MIN"
+
+          # Autoriser uniquement 09h00–09h09 ou 18h00–18h09
+          if { [ "$NOW_HOUR" = "09" ] && [ "$NOW_MIN" -lt 10 ]; } || \
+             { [ "$NOW_HOUR" = "18" ] && [ "$NOW_MIN" -lt 10 ]; }; then
+            echo "RUN_OK=true" >> $GITHUB_ENV
+            echo "✅ Exécution autorisée"
+          else
+            echo "RUN_OK=false" >> $GITHUB_ENV
+            echo "⛔ Mauvais créneau → stop"
+          fi
+
+      - name: ⛔ Stop si mauvais créneau
+        if: env.RUN_OK != 'true'
+        run: exit 0
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
