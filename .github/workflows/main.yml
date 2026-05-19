@@ -2,9 +2,8 @@ name: EEX Scraper Scheduled
 
 on:
   schedule:
-    # Toutes les 10 minutes entre 06h et 08h UTC
-    # → couvre 08h–10h Paris (été + hiver automatiquement)
-    - cron: '*/10 6-8 * * 1-5'
+    # Toutes les 30 minutes, lundi-vendredi, de 08h à 18h Paris environ
+    - cron: '*/30 6-16 * * 1-5'
 
   workflow_dispatch:
 
@@ -16,38 +15,6 @@ jobs:
       GitHub__Token: ${{ secrets.EEX_WEBSCRAPING }}
 
     steps:
-      - name: ⏱️ Vérification heure Paris + anti double run
-        id: timecheck
-        run: |
-          NOW=$(TZ="Europe/Paris" date +"%Y-%m-%d %H:%M:%S")
-          HOUR=$(TZ="Europe/Paris" date +%H)
-
-          echo "Heure Paris actuelle: $NOW"
-
-          # Autoriser uniquement entre 08h et 09h
-          if [ "$HOUR" = "08" ] || [ "$HOUR" = "09" ]; then
-            echo "Dans la bonne fenêtre horaire ✅"
-
-            # Anti double exécution (par jour)
-            LOCK_FILE="run_$(TZ="Europe/Paris" date +%Y%m%d).lock"
-
-            if [ -f "$LOCK_FILE" ]; then
-              echo "⚠️ Déjà exécuté aujourd'hui → stop"
-              echo "RUN_OK=false" >> $GITHUB_ENV
-              exit 0
-            fi
-
-            touch "$LOCK_FILE"
-            echo "RUN_OK=true" >> $GITHUB_ENV
-          else
-            echo "⛔ Hors créneau → stop"
-            echo "RUN_OK=false" >> $GITHUB_ENV
-          fi
-
-      - name: ⛔ Stop si mauvais créneau
-        if: env.RUN_OK != 'true'
-        run: exit 0
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -62,5 +29,5 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release
 
-      - name: Run
+      - name: Run scraper
         run: dotnet run --project WebScrapingHub/WebScrapingHub.csproj --configuration Release
