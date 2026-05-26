@@ -2,8 +2,8 @@ name: EEX Scraper Scheduled
 
 on:
   schedule:
-    # Toutes les 30 minutes, lundi-vendredi, de 08h à 18h Paris environ
-    - cron: '*/30 6-16 * * 1-5'
+    # 08h00, 08h30 et 09h00 heure France (été)
+    - cron: '0,30 6-7 * * 1-5'
 
   workflow_dispatch:
 
