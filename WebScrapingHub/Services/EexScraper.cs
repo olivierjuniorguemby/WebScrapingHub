@@ -97,7 +97,7 @@ namespace WebScrapingHub.Services
                 ClickElement(driver, wait, By.Id("tableGraph_submitBtn"), "GO / lancer la recherche");
                 Thread.Sleep(5000);
 
-                ClickElement(driver, wait, By.Id("tableGraph_showTableRadioBtn"), "Afficher le tableau");
+                ActivateTableMode(driver, wait);
                 Thread.Sleep(3000);
 
                 wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(
@@ -283,6 +283,27 @@ namespace WebScrapingHub.Services
                 Console.WriteLine($"❌ Timeout bouton {label} : {diagnostic}");
                 throw new InvalidOperationException($"EEX : bouton '{label}' non cliquable après 60 secondes. {diagnostic}", ex);
             }
+        }
+
+        private static void ActivateTableMode(IWebDriver driver, WebDriverWait wait)
+        {
+            Console.WriteLine("📊 Activation du mode tableau...");
+            // Le label EEX est volontairement masque (display:none).
+            // Ne pas utiliser ElementToBeClickable sur ce label.
+            var radio = wait.Until(d =>
+                d.FindElements(By.CssSelector("#tableGraph_showTableRadioBtn input[type='radio']"))
+                 .FirstOrDefault());
+
+            ((IJavaScriptExecutor)driver).ExecuteScript(@"
+                var radio = arguments[0];
+                radio.click();
+                if (!radio.checked) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            ", radio);
+
+            Console.WriteLine("✅ Commande d'activation du tableau envoyee");
         }
 
         private static bool TryParseDate(string input, out DateTime dt)
