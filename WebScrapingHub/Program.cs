@@ -38,10 +38,27 @@ namespace WebScrapingHub
             {
                 Console.WriteLine("❌ ERREUR SCRAPING");
                 Console.WriteLine(ex);
+                Environment.ExitCode = 1;
                 return;
             }
 
             Console.WriteLine($"✅ {rows.Count} lignes récupérées");
+
+            if (rows.Count == 0)
+            {
+                Console.Error.WriteLine("❌ Aucune cotation extraite : export annulé.");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            var lastDate = rows.Max(r => r.Date);
+            Console.WriteLine($"📅 Dernière cotation EEX extraite : {lastDate:yyyy-MM-dd}");
+            if (lastDate < DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)))
+            {
+                Console.Error.WriteLine("❌ Cotations de plus de 10 jours : publication annulée pour protéger les données existantes.");
+                Environment.ExitCode = 1;
+                return;
+            }
 
             try
             {
@@ -80,6 +97,8 @@ namespace WebScrapingHub
             {
                 Console.WriteLine("❌ ERREUR EXPORT JSON");
                 Console.WriteLine(ex);
+                Environment.ExitCode = 1;
+                return;
             }
 
             if (!string.IsNullOrWhiteSpace(csvOutPath))
