@@ -31,6 +31,7 @@ namespace WebScrapingHub.Services
 
             using var driver = CreateDriver(config, chromeOptions);
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(60));
+            wait.IgnoreExceptionTypes(typeof(StaleElementReferenceException));
 
             Console.WriteLine("🌐 Ouverture du site EEX...");
             driver.Navigate().GoToUrl(config.Url);
@@ -93,10 +94,10 @@ namespace WebScrapingHub.Services
                 // DELIVERY
                 SelectIfProvided(wait, "tableGraph_deliverySelect", query.Delivery);
 
-                ClickElement(wait, By.Id("tableGraph_submitBtn"));
+                ClickElement(driver, wait, By.Id("tableGraph_submitBtn"), "GO / lancer la recherche");
                 Thread.Sleep(5000);
 
-                ClickElement(wait, By.Id("tableGraph_showTableRadioBtn"));
+                ClickElement(driver, wait, By.Id("tableGraph_showTableRadioBtn"), "Afficher le tableau");
                 Thread.Sleep(3000);
 
                 wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(
@@ -107,6 +108,7 @@ namespace WebScrapingHub.Services
                 var tableRows = driver.FindElements(
                     By.XPath("//table[@id='tableGraph_dataTable']/tbody/tr"));
 
+                int beforeCount = results.Count;
                 foreach (var row in tableRows)
                 {
                     var cols = row.FindElements(By.TagName("td"));
@@ -134,6 +136,11 @@ namespace WebScrapingHub.Services
                         query.Delivery,
                         price));
                 }
+
+                int added = results.Count - beforeCount;
+                Console.WriteLine($"📊 {query.Market}/{query.Area}/{query.Product}/{query.Delivery}: {added} cotation(s)");
+                if (added == 0)
+                    throw new InvalidOperationException($"Aucune cotation exploitable pour {query.Market}/{query.Area}/{query.Product}/{query.Delivery}. Publication annulée.");
 
                 driver.Navigate().Refresh();
                 Thread.Sleep(5000);
@@ -248,11 +255,34 @@ namespace WebScrapingHub.Services
             Thread.Sleep(800);
         }
 
-        private static void ClickElement(WebDriverWait wait, By by)
+        private static void ClickElement(IWebDriver driver, WebDriverWait wait, By by, string label)
         {
-            var el = wait.Until(ExpectedConditions.ElementToBeClickable(by));
-            ((IJavaScriptExecutor)wait.Until(d => d))
-                .ExecuteScript("arguments[0].click();", el);
+            Console.WriteLine($"🖱️ Attente du bouton : {label} ({by})");
+            try
+            {
+                // Certains contrôles EEX sont présents mais non cliquables pendant le chargement AJAX.
+                var element = wait.Until(d =>
+                {
+                    var found = d.FindElements(by).FirstOrDefault();
+                    return found != null && found.Displayed && found.Enabled ? found : null;
+                });
+                ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", element);
+                Console.WriteLine($"✅ Clic effectué : {label}");
+            }
+            catch (WebDriverTimeoutException ex)
+            {
+                string diagnostic = "";
+                try
+                {
+                    diagnostic = (string?)((IJavaScriptExecutor)driver).ExecuteScript(@"
+                        var el = document.querySelector(arguments[0]);
+                        return el ? ('present=true, disabled=' + el.disabled + ', visible=' + !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length) + ', html=' + el.outerHTML.slice(0,350)) : 'element absent';
+                    ", "#" + (by.ToString().StartsWith("By.Id: ") ? by.ToString().Substring(7) : "")) ?? "";
+                }
+                catch { diagnostic = "diagnostic DOM indisponible"; }
+                Console.WriteLine($"❌ Timeout bouton {label} : {diagnostic}");
+                throw new InvalidOperationException($"EEX : bouton '{label}' non cliquable après 60 secondes. {diagnostic}", ex);
+            }
         }
 
         private static bool TryParseDate(string input, out DateTime dt)
